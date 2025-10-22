@@ -56,6 +56,12 @@ dev = [
     "mypy>=0.910",
     "pre-commit>=2.10.0"
 ]
+test = [
+    "pytest>=6.0",
+    "pytest-cov>=2.10.0",
+    "dask[array]>=2.0",
+    "scikit-learn>=1.0"
+]
 
 [project.urls]
 Homepage = "https://github.com/pyregrid/pyregrid"
