@@ -1,0 +1,107 @@
+site_name: PyRegrid Documentation
+site_url: https://pyregrid.github.io/pyregrid
+repo_url: https://github.com/bbakernoaa/pyregrid
+edit_uri: edit/main/docs/
+site_description: Documentation for PyRegrid, a Python library for regridding geospatial data
+site_author: PyRegrid Development Team
+copyright: Copyright &copy; 2023 - 2025 PyRegrid Development Team
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: "#005BAC"
+      accent: "#C8102E"
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: "#005BAC"
+      accent: "#C8102E"
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - header.autohide
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: sphinx
+            members_order: source
+            show_submodules: true
+            show_source: true
+            show_root_full_path: false
+            show_root_members_full_path: false
+            show_object_full_path: false
+            show_category_heading: true
+            heading_level: 2
+            inherited_members: true
+            filters:
+              - "!^_[^_]"
+  - autorefs
+  - mkdocs-jupyter:
+      include_source: true
+      execute: false
+      kernel_name: python3
+  - mike:
+      version_selector: true
+      canonical_version: null
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: installation.md
+    - Basic Usage: getting-started.md
+  - User Guide:
+    - Core Concepts: user-guide/core-concepts.md
+    - Regridding Methods: user-guide/regridding-methods.md
+    - Interpolation Methods: user-guide/interpolation-methods.md
+    - Coordinate Systems: user-guide/coordinate-systems.md
+    - Dask Integration: user-guide/dask-integration.md
+    - Performance Tips: user-guide/performance-tips.md
+  - Tutorials:
+    - Overview: tutorials/index.md
+  - API Reference:
+    - Overview: api-reference/index.md
+    - pyregrid: api-reference/pyregrid.md
+    - pyregrid.core: api-reference/pyregrid.core.md
+    - pyregrid.interpolation: api-reference/pyregrid.interpolation.md
+    - pyregrid.algorithms: api-reference/pyregrid.algorithms.md
+    - pyregrid.crs: api-reference/pyregrid.crs.md
+    - pyregrid.utils: api-reference/pyregrid.utils.md
+    - pyregrid.accessors: api-reference/pyregrid.accessors.md
+    - pyregrid.dask: api-reference/pyregrid.dask.md
+    - pyregrid.scattered_interpolation: api-reference/pyregrid.scattered_interpolation.md
+    - pyregrid.point_interpolator: api-reference/pyregrid.point_interpolator.md
+  - Examples:
+    - Overview: examples/index.md
+    - Basic Regridding: examples/notebooks/basic_regridding.ipynb
+  - Development:
+    - Contributing: development/contributing.md
+    - Architecture: development/architecture.md

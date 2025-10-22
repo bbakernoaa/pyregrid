@@ -1,0 +1,142 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyregrid"
+version = "0.1.0"
+description = "A modern, minimal dependency library for geospatial interpolation and regridding"
+readme = "README.md"
+authors = [
+    {name = "PyRegrid Development Team", email = "dev@pyregrid.org"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Mathematics"
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "pyproj>=3.0.0",
+    "xarray>=0.18.0"
+]
+
+[project.optional-dependencies]
+dask = [
+    "dask[array]>=2.0"
+]
+sklearn = [
+    "scikit-learn>=1.0.0"
+]
+docs = [
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.20.0",
+    "mkdocs-jupyter>=0.24.0",
+    "mkdocs-git-revision-date-plugin>=0.3.0"
+]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.10.0",
+    "black>=21.0.0",
+    "flake8>=3.8.0",
+    "mypy>=0.910",
+    "pre-commit>=2.10.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/pyregrid/pyregrid"
+Repository = "https://github.com/pyregrid/pyregrid"
+Documentation = "https://pyregrid.readthedocs.io/"
+Changelog = "https://github.com/pyregrid/pyregrid/releases"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pyregrid*"]
+
+[tool.setuptools.package-data]
+pyregrid = ["py.typed"]
+
+
+[tool.coverage.run]
+source = ["pyregrid"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*__pycache__*",
+    "*/venv/*",
+    "*/env/*",
+    "*/benchmarks/*",
+    "setup.py"
+]
+branch = true
+parallel = true
+concurrency = ["multiprocessing"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod"
+]
+show_missing = true
+skip_covered = false
+precision = 2
+fail_under = 90
+exclude_also = [
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+title = "PyRegrid Coverage Report"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.coverage.json]
+output = "coverage.json"
+
+[tool.coverage.lcov]
+output = "coverage.lcov"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "--tb=short",
+    "--cov=pyregrid",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-report=json:coverage.json",
+    "--cov-report=lcov:coverage.lcov",
+    "--cov-fail-under=90",
+    "--cov-branch"
+]
+markers = [
+    "slow: marks tests as slow",
+    "network: marks tests that require network access"
+]
