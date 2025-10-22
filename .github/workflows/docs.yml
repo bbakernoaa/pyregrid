@@ -14,11 +14,11 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Needed for mike to push to gh-pages
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Important for mike
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -30,23 +30,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install mkdocs-material mkdocs-jupyter mike mkdocstrings[python]
 
-      - name: Build documentation
+      - name: Build documentation (for testing PRs)
         run: |
           mkdocs build
 
-      - name: Deploy to GitHub Pages
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-          destination_dir: docs
+      - name: Deploy "latest" docs from main branch
+        # This step only runs on a push to the main branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Configure git user for mike
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Deploy current main branch to the 'latest' alias
+          mike deploy --push latest
+          mike set-default --push latest
 
   deploy-versioned-docs:
     needs: build-docs
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # This job only runs on a push of a tag starting with 'v'
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
@@ -65,9 +70,14 @@ jobs:
 
       - name: Deploy versioned documentation
         run: |
+          # Configure git user for mike
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           # Get version from tag
           VERSION=${GITHUB_REF#refs/tags/v}
           
           # Build and deploy versioned documentation
+          # This deploys the new version AND updates 'latest' to point to it
           mike deploy --push $VERSION latest
           mike set-default --push $VERSION

@@ -299,102 +299,121 @@ class GridRegridder:
         # For longitude (x-axis) and latitude (y-axis), we need to create 2D index grids
         # that match the target grid shape, not just 1D coordinate arrays
         
-        # Create 2D meshgrids for target coordinates
-        target_lon_2d, target_lat_2d = np.meshgrid(
-            self._target_lon, self._target_lat, indexing='xy'
-        )
-        
-        # Prepare coordinate transformation if needed
-        if self.transformer:
-            # Transform target coordinates to source CRS
-            try:
-                source_target_lon_2d, source_target_lat_2d = self.transformer.transform(
-                    target_lon_2d, target_lat_2d, direction='INVERSE'
-                )
-            except Exception as e:
-                # If transformation fails, use original coordinates
-                warnings.warn(f"Coordinate transformation failed: {e}. Using original coordinates.")
-                source_target_lon_2d = target_lon_2d
-                source_target_lat_2d = target_lat_2d
-        else:
-            source_target_lon_2d = target_lon_2d
-            source_target_lat_2d = target_lat_2d
-        
-        # For longitude (x-axis)
-        # Check if coordinates are in ascending or descending order
-        # Handle both 1D (rectilinear) and 2D (curvilinear) coordinate arrays
-        if self._source_lon.ndim == 1:
-            # 1D coordinates (rectilinear grid)
-            if len(self._source_lon) > 1 and self._source_lon[0] > self._source_lon[-1]:
-                # Coordinates are in descending order, need to reverse the index mapping
-                lon_indices = len(self._source_lon) - 1 - np.interp(
-                    source_target_lon_2d,
-                    self._source_lon[::-1],  # Reverse the coordinate array
-                    np.arange(len(self._source_lon))  # Normal index array
+        # For identity regridding (source and target grids are the same),
+        # we need to handle the coordinate mapping differently
+        if np.array_equal(self._source_lon, self._target_lon) and np.array_equal(self._source_lat, self._target_lat):
+            # For identity regridding, we should map each point to itself
+            # Create identity mapping indices
+            if self._source_lon.ndim == 2 and self._source_lat.ndim == 2:
+                # For curvilinear grids, create identity mapping
+                # The indices should map each point in the target grid to the same position in the source grid
+                target_shape = self._target_lon.shape
+                lat_indices, lon_indices = np.meshgrid(
+                    np.arange(target_shape[0]),
+                    np.arange(target_shape[1]),
+                    indexing='ij'
                 )
             else:
-                # Coordinates are in ascending order (normal case)
-                lon_indices = np.interp(
-                    source_target_lon_2d,
-                    self._source_lon,
-                    np.arange(len(self._source_lon))
-                )
+                # For rectilinear grids
+                lat_indices = np.arange(len(self._source_lat))
+                lon_indices = np.arange(len(self._source_lon))
         else:
-            # 2D coordinates (curvilinear grid) - need special handling
-            # For curvilinear grids, we need to map each target point to the nearest source point
-            # This is more complex than simple interpolation
-            
-            # Create coordinate grids for the source
-            source_lon_grid, source_lat_grid = np.meshgrid(
-                np.arange(self._source_lon.shape[1]),  # longitude indices
-                np.arange(self._source_lon.shape[0]),  # latitude indices
-                indexing='xy'
+            # Create 2D meshgrids for target coordinates
+            target_lon_2d, target_lat_2d = np.meshgrid(
+                self._target_lon, self._target_lat, indexing='xy'
             )
             
-            # Flatten the source coordinates and create points
-            source_points = np.column_stack([
-                source_lat_grid.flatten(),
-                source_lon_grid.flatten()
-            ])
-            
-            # Flatten the target coordinates
-            target_points = np.column_stack([
-                source_target_lat_2d.flatten(),
-                source_target_lon_2d.flatten()
-            ])
-            
-            # Use KDTree for nearest neighbor search
-            from scipy.spatial import cKDTree
-            tree = cKDTree(source_points)
-            
-            # Find nearest neighbors
-            distances, indices = tree.query(target_points)
-            
-            # Reshape indices back to target grid shape
-            lon_indices = indices.reshape(source_target_lon_2d.shape)
-        
-        # For latitude (y-axis) - for curvilinear grids, we use the same indices as longitude
-        # since we're doing nearest neighbor mapping
-        if self._source_lat.ndim == 1:
-            # 1D coordinates (rectilinear grid)
-            if len(self._source_lat) > 1 and self._source_lat[0] > self._source_lat[-1]:
-                # Coordinates are in descending order, need to reverse the index mapping
-                lat_indices = len(self._source_lat) - 1 - np.interp(
-                    source_target_lat_2d,
-                    self._source_lat[::-1], # Reverse the coordinate array
-                    np.arange(len(self._source_lat))  # Normal index array
-                )
+            # Prepare coordinate transformation if needed
+            if self.transformer:
+                # Transform target coordinates to source CRS
+                try:
+                    source_target_lon_2d, source_target_lat_2d = self.transformer.transform(
+                        target_lon_2d, target_lat_2d, direction='INVERSE'
+                    )
+                except Exception as e:
+                    # If transformation fails, use original coordinates
+                    warnings.warn(f"Coordinate transformation failed: {e}. Using original coordinates.")
+                    source_target_lon_2d = target_lon_2d
+                    source_target_lat_2d = target_lat_2d
             else:
-                # Coordinates are in ascending order (normal case)
-                lat_indices = np.interp(
-                    source_target_lat_2d,
-                    self._source_lat,
-                    np.arange(len(self._source_lat))
+                source_target_lon_2d = target_lon_2d
+                source_target_lat_2d = target_lat_2d
+            
+            # For longitude (x-axis)
+            # Check if coordinates are in ascending or descending order
+            # Handle both 1D (rectilinear) and 2D (curvilinear) coordinate arrays
+            if self._source_lon.ndim == 1:
+                # 1D coordinates (rectilinear grid)
+                if len(self._source_lon) > 1 and self._source_lon[0] > self._source_lon[-1]:
+                    # Coordinates are in descending order, need to reverse the index mapping
+                    lon_indices = len(self._source_lon) - 1 - np.interp(
+                        source_target_lon_2d,
+                        self._source_lon[::-1],  # Reverse the coordinate array
+                        np.arange(len(self._source_lon))  # Normal index array
+                    )
+                else:
+                    # Coordinates are in ascending order (normal case)
+                    lon_indices = np.interp(
+                        source_target_lon_2d,
+                        self._source_lon,
+                        np.arange(len(self._source_lon))
+                    )
+            else:
+                # 2D coordinates (curvilinear grid) - need special handling
+                # For curvilinear grids, we need to map each target point to the nearest source point
+                # This is more complex than simple interpolation
+                
+                # Create coordinate grids for the source
+                source_lon_grid, source_lat_grid = np.meshgrid(
+                    np.arange(self._source_lon.shape[1]),  # longitude indices
+                    np.arange(self._source_lon.shape[0]),  # latitude indices
+                    indexing='xy'
                 )
-        else:
-            # For curvilinear grids, lat_indices should be the same as lon_indices
-            # because we're mapping each target point to a specific source point
-            lat_indices = lon_indices
+                
+                # Flatten the source coordinates and create points
+                source_points = np.column_stack([
+                    source_lat_grid.flatten(),
+                    source_lon_grid.flatten()
+                ])
+                
+                # Flatten the target coordinates
+                target_points = np.column_stack([
+                    source_target_lat_2d.flatten(),
+                    source_target_lon_2d.flatten()
+                ])
+                
+                # Use KDTree for nearest neighbor search
+                from scipy.spatial import cKDTree
+                tree = cKDTree(source_points)
+                
+                # Find nearest neighbors
+                distances, indices = tree.query(target_points)
+                
+                # Reshape indices back to target grid shape
+                lon_indices = indices.reshape(source_target_lon_2d.shape)
+            
+            # For latitude (y-axis) - for curvilinear grids, we use the same indices as longitude
+            # since we're doing nearest neighbor mapping
+            if self._source_lat.ndim == 1:
+                # 1D coordinates (rectilinear grid)
+                if len(self._source_lat) > 1 and self._source_lat[0] > self._source_lat[-1]:
+                    # Coordinates are in descending order, need to reverse the index mapping
+                    lat_indices = len(self._source_lat) - 1 - np.interp(
+                        source_target_lat_2d,
+                        self._source_lat[::-1], # Reverse the coordinate array
+                        np.arange(len(self._source_lat))  # Normal index array
+                    )
+                else:
+                    # Coordinates are in ascending order (normal case)
+                    lat_indices = np.interp(
+                        source_target_lat_2d,
+                        self._source_lat,
+                        np.arange(len(self._source_lat))
+                    )
+            else:
+                # For curvilinear grids, lat_indices should be the same as lon_indices
+                # because we're mapping each target point to a specific source point
+                lat_indices = lon_indices
         
         # Store the coordinate mapping
         self.weights = {
@@ -505,9 +524,29 @@ class GridRegridder:
             output_coords = {}
             for coord_name in data.coords:
                 if coord_name == self._source_lon_name:
-                    output_coords[self._target_lon_name] = self._target_lon
+                    # For curvilinear grids, preserve the 2D coordinate structure
+                    if self._target_lon.ndim == 2:
+                        # For 2D coordinates, create a Variable with proper dimensions and attributes
+                        from xarray.core.variable import Variable
+                        coord_var = Variable(data.dims, self._target_lon)
+                        # Preserve original attributes if they exist in the source grid
+                        if hasattr(self.source_grid, 'coords') and self._source_lon_name in self.source_grid.coords:
+                            coord_var.attrs.update(self.source_grid.coords[self._source_lon_name].attrs)
+                        output_coords[self._target_lon_name] = coord_var
+                    else:
+                        output_coords[self._target_lon_name] = self._target_lon
                 elif coord_name == self._source_lat_name:
-                    output_coords[self._target_lat_name] = self._target_lat
+                    # For curvilinear grids, preserve the 2D coordinate structure
+                    if self._target_lat.ndim == 2:
+                        # For 2D coordinates, create a Variable with proper dimensions and attributes
+                        from xarray.core.variable import Variable
+                        coord_var = Variable(data.dims, self._target_lat)
+                        # Preserve original attributes if they exist in the source grid
+                        if hasattr(self.source_grid, 'coords') and self._source_lat_name in self.source_grid.coords:
+                            coord_var.attrs.update(self.source_grid.coords[self._source_lat_name].attrs)
+                        output_coords[self._target_lat_name] = coord_var
+                    else:
+                        output_coords[self._target_lat_name] = self._target_lat
                 elif coord_name in [self._source_lon_name, self._source_lat_name]:
                     # Skip the original coordinate axes, they'll be replaced
                     continue
@@ -517,8 +556,16 @@ class GridRegridder:
             
             # Determine output shape
             output_shape = list(data.shape)
-            output_shape[lon_axis] = len(self._target_lon)
-            output_shape[lat_axis] = len(self._target_lat)
+            # For curvilinear grids, target coordinates are 2D arrays
+            # The output should match the shape of the target coordinate arrays
+            if self._target_lon.ndim == 2 and self._target_lat.ndim == 2:
+                # For curvilinear grids, both coordinate arrays should have the same shape
+                output_shape[lon_axis] = self._target_lon.shape[1]  # longitude dimension size
+                output_shape[lat_axis] = self._target_lon.shape[0]  # latitude dimension size
+            else:
+                # For rectilinear grids, coordinates are 1D
+                output_shape[lon_axis] = len(self._target_lon)
+                output_shape[lat_axis] = len(self._target_lat)
             
             # Check if data contains Dask arrays
             is_dask = hasattr(data.data, 'chunks') and data.data.__class__.__module__.startswith('dask')
@@ -583,9 +630,17 @@ class GridRegridder:
             
             # Ensure the result has the expected shape
             expected_shape = list(data.shape)
-            expected_shape[lon_axis] = len(self._target_lon)
-            expected_shape[lat_axis] = len(self._target_lat)
-            
+            # For curvilinear grids, target coordinates are 2D arrays
+            # The output should match the shape of the target coordinate arrays
+            if self._target_lon.ndim == 2 and self._target_lat.ndim == 2:
+                # For curvilinear grids, both coordinate arrays should have the same shape
+                expected_shape[lon_axis] = self._target_lon.shape[1]  # longitude dimension size
+                expected_shape[lat_axis] = self._target_lon.shape[0]  # latitude dimension size
+            else:
+                # For rectilinear grids, coordinates are 1D
+                expected_shape[lon_axis] = len(self._target_lon)
+                expected_shape[lat_axis] = len(self._target_lat)
+    
             if result_data.shape != tuple(expected_shape):
                 raise ValueError(
                     f"Result shape {result_data.shape} does not match expected shape {tuple(expected_shape)}"
@@ -600,7 +655,8 @@ class GridRegridder:
                 result_data,
                 dims=output_dims,
                 coords=output_coords,
-                attrs=data.attrs
+                attrs=data.attrs,
+                name=data.name  # Preserve the original data variable name
             )
             
             return result
@@ -771,11 +827,6 @@ class GridRegridder:
         # For curvilinear grids, we use direct indexing with the precomputed indices
         # The indices should already be in the correct format for direct indexing
         
-        # Prepare the output shape
-        output_shape = list(data.shape)
-        output_shape[lon_axis] = lon_indices.shape[1]  # Target longitude size
-        output_shape[lat_axis] = lon_indices.shape[0]  # Target latitude size
-        
         # For regular numpy arrays, use direct indexing
         # Transpose the data so that the spatial axes are at the end
         non_spatial_axes = [i for i in range(len(data.shape)) if i not in [lon_axis, lat_axis]]
@@ -784,7 +835,11 @@ class GridRegridder:
         
         # Get the shape of non-spatial dimensions
         non_spatial_shape = transposed_data.shape[:len(non_spatial_axes)]
-        result_shape = non_spatial_shape + (lon_indices.shape[0], lon_indices.shape[1])
+        
+        # Determine output shape based on the coordinate indices
+        # For identity regridding, the target grid shape should match the source grid shape
+        # For regular regridding, it should match the target grid shape
+        result_shape = non_spatial_shape + lon_indices.shape
         result = np.full(result_shape, np.nan, dtype=data.dtype)
         
         # Process each slice along non-spatial dimensions
@@ -798,6 +853,7 @@ class GridRegridder:
                 # Make sure indices are within bounds
                 lat_idx = np.clip(lat_indices.astype(int), 0, slice_2d.shape[0] - 1)
                 lon_idx = np.clip(lon_indices.astype(int), 0, slice_2d.shape[1] - 1)
+                # Use advanced indexing to select the values
                 interpolated_slice = slice_2d[lat_idx, lon_idx]
             else:
                 # For higher order interpolation, we need to use a different approach
@@ -806,6 +862,7 @@ class GridRegridder:
                 # by interpolating between the nearest neighbors
                 lat_idx = np.clip(lat_indices.astype(int), 0, slice_2d.shape[0] - 1)
                 lon_idx = np.clip(lon_indices.astype(int), 0, slice_2d.shape[1] - 1)
+                # Use advanced indexing to select the values
                 interpolated_slice = slice_2d[lat_idx, lon_idx]
             
             result[idx] = interpolated_slice
@@ -813,7 +870,7 @@ class GridRegridder:
         # Transpose back to original axis order but with new spatial dimensions
         final_axes = []
         ax_idx = 0
-        for i in range(len(output_shape)):
+        for i in range(len(data.shape)):
             if i == lat_axis:
                 final_axes.append(len(non_spatial_shape))
             elif i == lon_axis:
@@ -840,7 +897,8 @@ class GridRegridder:
                     
                     # Get the shape of non-spatial dimensions for this block
                     block_non_spatial_shape = block_transposed.shape[:len(non_spatial_axes)]
-                    block_result_shape = block_non_spatial_shape + (lon_indices.shape[0], lon_indices.shape[1])
+                    # Determine output shape based on the coordinate indices
+                    block_result_shape = block_non_spatial_shape + lon_indices.shape
                     block_result = np.full(block_result_shape, np.nan, dtype=block.dtype)
                     
                     # Process each slice along non-spatial dimensions
@@ -851,11 +909,13 @@ class GridRegridder:
                         if order == 0:  # Nearest neighbor
                             lat_idx = np.clip(lat_indices.astype(int), 0, slice_2d.shape[0] - 1)
                             lon_idx = np.clip(lon_indices.astype(int), 0, slice_2d.shape[1] - 1)
+                            # Use advanced indexing to select the values
                             interpolated_slice = slice_2d[lat_idx, lon_idx]
                         else:
                             # For higher order interpolation, use nearest neighbor for now
                             lat_idx = np.clip(lat_indices.astype(int), 0, slice_2d.shape[0] - 1)
                             lon_idx = np.clip(lon_indices.astype(int), 0, slice_2d.shape[1] - 1)
+                            # Use advanced indexing to select the values
                             interpolated_slice = slice_2d[lat_idx, lon_idx]
                         
                         block_result[idx] = interpolated_slice
@@ -863,7 +923,7 @@ class GridRegridder:
                     # Transpose back to original axis order but with new spatial dimensions
                     block_final_axes = []
                     ax_idx = 0
-                    for j in range(len(output_shape)):
+                    for j in range(len(block.shape)):
                         if j == lat_axis:
                             block_final_axes.append(len(block_non_spatial_shape))
                         elif j == lon_axis:
@@ -881,7 +941,7 @@ class GridRegridder:
                     dtype=data.dtype,
                     drop_axis=[lat_axis, lon_axis],  # Remove the old spatial axes
                     new_axis=list(range(len(non_spatial_shape), len(non_spatial_shape) + 2)),  # Add new spatial axes
-                    chunks=output_shape
+                    chunks=output.shape
                 )
                 return output
             except ImportError:

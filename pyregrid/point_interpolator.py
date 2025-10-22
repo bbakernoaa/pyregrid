@@ -12,7 +12,14 @@ from typing import Union, Optional, Dict, Any, Tuple, List
 import warnings
 from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
-from sklearn.neighbors import KNeighborsRegressor
+# Import sklearn neighbors conditionally for optional functionality
+# try:
+#     from sklearn.neighbors import KNeighborsRegressor
+#     HAS_SKLEARN = True
+# except ImportError:
+#     KNeighborsRegressor = None
+#     HAS_SKLEARN = False
+HAS_SKLEARN = False # sklearn functionality removed for now
 from pyproj import CRS, Transformer
 
 from pyregrid.crs.crs_manager import CRSManager
