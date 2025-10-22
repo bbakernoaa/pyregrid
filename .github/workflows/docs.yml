@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs-material mkdocs-jupyter mike
+          pip install mkdocs-material mkdocs-jupyter mike mkdocstrings[python]
 
       - name: Build documentation
         run: |
@@ -57,7 +57,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs-material mkdocs-jupyter mike
+          pip install mkdocs-material mkdocs-jupyter mike mkdocstrings[python]
 
       - name: Deploy versioned documentation
         run: |
