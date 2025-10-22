@@ -38,7 +38,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=pyregrid --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=90 --cov-branch --cov-report=functions
+        pytest --cov=pyregrid --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=90 --cov-branch
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
