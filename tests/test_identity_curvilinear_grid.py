@@ -207,16 +207,16 @@ def test_curvilinear_coordinate_mapping_preserved():
     assert 'lon' in regridded_ds.dims, "Longitude dimension missing from regridded data"
     
     # Check that coordinate arrays have the correct shape
-    assert regridded_ds['lat'].shape == regridded_ds['temperature'].shape, \
+    assert regridded_ds['lat'].shape == regridded_ds.shape, \
         "Latitude coordinate shape doesn't match data shape"
-    
-    assert regridded_ds['lon'].shape == regridded_ds['temperature'].shape, \
+
+    assert regridded_ds['lon'].shape == regridded_ds.shape, \
         "Longitude coordinate shape doesn't match data shape"
     
     # Verify that the coordinate mapping is consistent
     # Each data point should have corresponding lat/lon coordinates
-    for i in range(regridded_ds.dims['lat']):
-        for j in range(regridded_ds.dims['lon']):
+    for i in range(regridded_ds.shape[0]):  # latitude dimension
+        for j in range(regridded_ds.shape[1]):  # longitude dimension
             # Check that the coordinate values are consistent
             assert not np.isnan(regridded_ds['lat'].values[i, j]), \
                 f"NaN found in latitude coordinate at ({i}, {j})"
@@ -315,22 +315,26 @@ def test_curvilinear_grid_with_different_interpolation_methods():
         # Data should be very close (allowing for method-specific precision)
         if method == 'nearest':
             # Nearest neighbor should be exact for identity regridding
-            xr.testing.assert_allclose(
-                regridded_ds,
-                ds['temperature'],
-                rtol=1e-12,
-                atol=1e-12,
-                err_msg=f"Identity regridding failed for {method} method"
-            )
+            try:
+                xr.testing.assert_allclose(
+                    regridded_ds,
+                    ds['temperature'],
+                    rtol=1e-12,
+                    atol=1e-12
+                )
+            except AssertionError:
+                raise AssertionError(f"Identity regridding failed for {method} method")
         else:
             # Bilinear and cubic may have tiny floating point differences
-            xr.testing.assert_allclose(
-                regridded_ds,
-                ds['temperature'],
-                rtol=1e-10,
-                atol=1e-10,
-                err_msg=f"Identity regridding failed for {method} method"
-            )
+            try:
+                xr.testing.assert_allclose(
+                    regridded_ds,
+                    ds['temperature'],
+                    rtol=1e-10,
+                    atol=1e-10
+                )
+            except AssertionError:
+                raise AssertionError(f"Identity regridding failed for {method} method")
 
 
 def test_curvilinear_grid_coordinate_attributes_preserved():
@@ -350,9 +354,13 @@ def test_curvilinear_grid_coordinate_attributes_preserved():
     regridded_ds = regridder.regrid(ds['temperature'])
     
     # Check that all coordinate attributes are preserved
-    for coord_name in ['lat', 'lon', 'temperature']:
+    for coord_name in ['lat', 'lon']:
         assert regridded_ds[coord_name].attrs == ds[coord_name].attrs, \
             f"Attributes for {coord_name} not preserved"
+    
+    # Check that the data variable attributes are preserved
+    assert regridded_ds.attrs == ds['temperature'].attrs, \
+        "Data variable attributes not preserved"
 
 
 if __name__ == "__main__":

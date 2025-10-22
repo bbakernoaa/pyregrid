@@ -1120,7 +1120,8 @@ class HybridSpatialIndex:
                 radius_rad = radius / geod.a  # Convert meters to radians
                 indices = self.spatial_index.query_radius(target_points_rad, radius_rad)
         
-        return indices
+        # Convert numpy array to list to match expected interface
+        return indices.tolist()
 
 
 # Convenience functions for common interpolation methods

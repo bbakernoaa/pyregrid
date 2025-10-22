@@ -314,9 +314,11 @@ class GridRegridder:
                     indexing='ij'
                 )
             else:
-                # For rectilinear grids
-                lat_indices = np.arange(len(self._source_lat))
-                lon_indices = np.arange(len(self._source_lon))
+                # For rectilinear grids, create 2D coordinate grids that match the target grid shape
+                # Create meshgrids with the correct shape for identity mapping
+                target_lat_idx = np.arange(len(self._target_lat))
+                target_lon_idx = np.arange(len(self._target_lon))
+                lat_indices, lon_indices = np.meshgrid(target_lat_idx, target_lon_idx, indexing='ij')
         else:
             # Create 2D meshgrids for target coordinates
             target_lon_2d, target_lat_2d = np.meshgrid(
@@ -692,8 +694,15 @@ class GridRegridder:
        
        # Prepare the output shape
        output_shape = list(data.shape)
-       output_shape[lon_axis] = lon_indices.shape[1]  # Target longitude size
-       output_shape[lat_axis] = lon_indices.shape[0] # Target latitude size
+       # Handle both 1D and 2D coordinate index arrays for identity regridding
+       if lon_indices.ndim == 1:
+           # For 1D coordinate indices (rectilinear grids in identity regridding)
+           output_shape[lon_axis] = len(lon_indices)
+           output_shape[lat_axis] = len(lat_indices)
+       else:
+           # For 2D coordinate indices (normal regridding or curvilinear grids)
+           output_shape[lon_axis] = lon_indices.shape[1] # Target longitude size
+           output_shape[lat_axis] = lon_indices.shape[0] # Target latitude size
        
        # For regular numpy arrays, use the original approach
        # Transpose the data so that the spatial axes are at the end
@@ -703,7 +712,13 @@ class GridRegridder:
        
        # Get the shape of non-spatial dimensions
        non_spatial_shape = transposed_data.shape[:len(non_spatial_axes)]
-       result_shape = non_spatial_shape + (lon_indices.shape[0], lon_indices.shape[1])
+       # Handle both 1D and 2D coordinate index arrays for identity regridding
+       if lon_indices.ndim == 1:
+           # For 1D coordinate indices (rectilinear grids in identity regridding)
+           result_shape = non_spatial_shape + (len(lat_indices), len(lon_indices))
+       else:
+           # For 2D coordinate indices (normal regridding or curvilinear grids)
+           result_shape = non_spatial_shape + (lon_indices.shape[0], lon_indices.shape[1])
        result = np.full(result_shape, np.nan, dtype=data.dtype)
        
        # Process each slice along non-spatial dimensions
@@ -711,13 +726,31 @@ class GridRegridder:
            slice_2d = transposed_data[idx]
            # Use map_coordinates with the precomputed coordinate arrays
            # For each point in the output grid, we specify which input indices to use
-           interpolated_slice = map_coordinates(
-               slice_2d,
-               coordinates,
-               order=order,
-               mode='nearest',
-               cval=np.nan
-           )
+           # Handle both 1D and 2D coordinate index arrays for identity regridding
+           if lon_indices.ndim == 1:
+               # For 1D coordinate indices (rectilinear grids in identity regridding)
+               # Need to create 2D coordinate grids for each slice
+               lat_idx_grid, lon_idx_grid = np.meshgrid(
+                   lat_indices.astype(float),
+                   lon_indices.astype(float),
+                   indexing='ij'
+               )
+               interpolated_slice = map_coordinates(
+                   slice_2d,
+                   [lat_idx_grid, lon_idx_grid],
+                   order=order,
+                   mode='nearest',
+                   cval=np.nan
+               )
+           else:
+               # For 2D coordinate indices (normal regridding or curvilinear grids)
+               interpolated_slice = map_coordinates(
+                   slice_2d,
+                   coordinates,
+                   order=order,
+                   mode='nearest',
+                   cval=np.nan
+               )
            result[idx] = interpolated_slice
        
        # Transpose back to original axis order but with new spatial dimensions
@@ -753,7 +786,13 @@ class GridRegridder:
                    
                    # Get the shape of non-spatial dimensions for this block
                    block_non_spatial_shape = block_transposed.shape[:len(non_spatial_axes)]
-                   block_result_shape = block_non_spatial_shape + (lon_indices.shape[0], lon_indices.shape[1])
+                   # Handle both 1D and 2D coordinate index arrays
+                   if lon_indices.ndim == 1:
+                       # For 1D coordinate indices (rectilinear grids in identity regridding)
+                       block_result_shape = block_non_spatial_shape + (len(lat_indices), len(lon_indices))
+                   else:
+                       # For 2D coordinate indices (normal regridding or curvilinear grids)
+                       block_result_shape = block_non_spatial_shape + (lon_indices.shape[0], lon_indices.shape[1])
                    block_result = np.full(block_result_shape, np.nan, dtype=block.dtype)
                    
                    # Process each slice along non-spatial dimensions
@@ -839,7 +878,13 @@ class GridRegridder:
         # Determine output shape based on the coordinate indices
         # For identity regridding, the target grid shape should match the source grid shape
         # For regular regridding, it should match the target grid shape
-        result_shape = non_spatial_shape + lon_indices.shape
+        # Handle both 1D and 2D coordinate index arrays
+        if lon_indices.ndim == 1:
+            # For 1D coordinate indices (rectilinear grids in identity regridding)
+            result_shape = non_spatial_shape + (len(lat_indices), len(lon_indices))
+        else:
+            # For 2D coordinate indices (normal regridding or curvilinear grids)
+            result_shape = non_spatial_shape + lon_indices.shape
         result = np.full(result_shape, np.nan, dtype=data.dtype)
         
         # Process each slice along non-spatial dimensions
@@ -898,7 +943,13 @@ class GridRegridder:
                     # Get the shape of non-spatial dimensions for this block
                     block_non_spatial_shape = block_transposed.shape[:len(non_spatial_axes)]
                     # Determine output shape based on the coordinate indices
-                    block_result_shape = block_non_spatial_shape + lon_indices.shape
+                    # Handle both 1D and 2D coordinate index arrays
+                    if lon_indices.ndim == 1:
+                        # For 1D coordinate indices (rectilinear grids in identity regridding)
+                        block_result_shape = block_non_spatial_shape + (len(lat_indices), len(lon_indices))
+                    else:
+                        # For 2D coordinate indices (normal regridding or curvilinear grids)
+                        block_result_shape = block_non_spatial_shape + lon_indices.shape
                     block_result = np.full(block_result_shape, np.nan, dtype=block.dtype)
                     
                     # Process each slice along non-spatial dimensions
@@ -1001,7 +1052,13 @@ class GridRegridder:
             
             # Get the shape of non-spatial dimensions
             non_spatial_shape = transposed_data.shape[:len(non_spatial_axes)]
-            result_shape = non_spatial_shape + (lat_indices.shape[0], lon_indices.shape[1])
+            # Handle both 1D and 2D coordinate index arrays
+            if lon_indices.ndim == 1:
+                # For 1D coordinate indices (rectilinear grids in identity regridding)
+                result_shape = non_spatial_shape + (len(lat_indices), len(lon_indices))
+            else:
+                # For 2D coordinate indices (normal regridding or curvilinear grids)
+                result_shape = non_spatial_shape + (lat_indices.shape[0], lon_indices.shape[1])
             result = np.full(result_shape, np.nan, dtype=data_slice.dtype)
             
             # Iterate over all combinations of non-spatial dimensions

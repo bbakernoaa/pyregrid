@@ -37,7 +37,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dask = [
-    "dask[array]>=2.0"
+    "dask[array]>=2.0",
+    "distributed>=2.0"
 ]
 sklearn = [
     "scikit-learn>=1.0.0"

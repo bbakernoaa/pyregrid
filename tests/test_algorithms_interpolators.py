@@ -1,4 +1,4 @@
-i"""
+"""
 Tests for interpolation algorithms.
 
 This module contains comprehensive tests for all interpolation algorithms,

@@ -318,9 +318,14 @@ class DaskRegridder:
         )
         
         # Ensure the result is a dask array with appropriate chunks
-        if not hasattr(result_data, 'chunks') and hasattr(result_data, 'compute') and da is not None:
-            # If result is not chunked but is a dask-compatible object, chunk it
-            result_data = da.from_array(result_data, chunks='auto')
+        if not hasattr(result_data, 'chunks') and da is not None:
+            # If result is not chunked but dask is available, convert it to a dask array
+            if hasattr(result_data, 'compute'):
+                # If it's a dask array that was computed, recreate it with chunks
+                result_data = da.from_array(result_data.compute(), chunks='auto')
+            else:
+                # If it's a numpy array, convert it to a dask array
+                result_data = da.from_array(result_data, chunks='auto')
         
         # Update the base regridder's coordinate handling to work with the interpolator
         # The current implementation in the interpolator may not properly handle coordinate transformation

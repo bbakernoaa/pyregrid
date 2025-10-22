@@ -143,104 +143,116 @@ class PointInterpolator:
         self._extract_point_data()
     
     def _extract_coordinates(self):
-        """Extract coordinate information from source points."""
-        if isinstance(self.source_points, pd.DataFrame):
-            # Look for common coordinate names in the DataFrame if not specified
-            if self.x_coord is None:
-                for col in self.source_points.columns:
-                    if any(name in col.lower() for name in ['lon', 'x', 'longitude']):
-                        self.x_coord = col
-                        break
-                if self.x_coord is None:
-                    raise ValueError("Could not find x coordinate column in DataFrame")
-            
-            if self.y_coord is None:
-                for col in self.source_points.columns:
-                    if any(name in col.lower() for name in ['lat', 'y', 'latitude']):
-                        self.y_coord = col
-                        break
-                if self.y_coord is None:
-                    raise ValueError("Could not find y coordinate column in DataFrame")
-            
-            self.x_coords = np.asarray(self.source_points[self.x_coord].values)
-            self.y_coords = np.asarray(self.source_points[self.y_coord].values)
-            
-        elif isinstance(self.source_points, xr.Dataset):
-            # Extract coordinates from xarray Dataset
-            if self.x_coord is None:
-                for coord_name in self.source_points.coords:
-                    if any(name in str(coord_name).lower() for name in ['lon', 'x', 'longitude']):
-                        self.x_coord = str(coord_name)
-                        break
-                if self.x_coord is None:
-                    raise ValueError("Could not find x coordinate in Dataset")
-            
-            if self.y_coord is None:
-                for coord_name in self.source_points.coords:
-                    if any(name in str(coord_name).lower() for name in ['lat', 'y', 'latitude']):
-                        self.y_coord = str(coord_name)
-                        break
-                if self.y_coord is None:
-                    raise ValueError("Could not find y coordinate in Dataset")
-            
-            self.x_coords = np.asarray(self.source_points[self.x_coord].values)
-            self.y_coords = np.asarray(self.source_points[self.y_coord].values)
-            
-        elif isinstance(self.source_points, dict):
-            # Extract coordinates from dictionary
-            if self.x_coord is None:
-                for key in self.source_points.keys():
-                    if any(name in key.lower() for name in ['lon', 'x', 'longitude']):
-                        self.x_coord = key
-                        break
-                if self.x_coord is None:
-                    raise ValueError("Could not find x coordinate key in dictionary")
-            
-            if self.y_coord is None:
-                for key in self.source_points.keys():
-                    if any(name in key.lower() for name in ['lat', 'y', 'latitude']):
-                        self.y_coord = key
-                        break
-                if self.y_coord is None:
-                    raise ValueError("Could not find y coordinate key in dictionary")
-            
-            self.x_coords = np.asarray(self.source_points[self.x_coord])
-            self.y_coords = np.asarray(self.source_points[self.y_coord])
-        else:
-            raise TypeError(
-                f"source_points must be pandas.DataFrame, xarray.Dataset, or dict, "
-                f"got {type(self.source_points)}"
-            )
-        
-        # Validate that coordinates have the same length
-        if len(self.x_coords) != len(self.y_coords):
-            raise ValueError("x and y coordinate arrays must have the same length")
+       """Extract coordinate information from source points."""
+       if isinstance(self.source_points, pd.DataFrame):
+           # Look for common coordinate names in the DataFrame if not specified
+           if self.x_coord is None:
+               for col in self.source_points.columns:
+                   if any(name in col.lower() for name in ['lon', 'x', 'longitude']):
+                       self.x_coord = col
+                       break
+               if self.x_coord is None:
+                   raise ValueError("Could not find x coordinate column in DataFrame")
+           
+           if self.y_coord is None:
+               for col in self.source_points.columns:
+                   if any(name in col.lower() for name in ['lat', 'y', 'latitude']):
+                       self.y_coord = col
+                       break
+               if self.y_coord is None:
+                   raise ValueError("Could not find y coordinate column in DataFrame")
+           
+           self.x_coords = np.asarray(self.source_points[self.x_coord].values)
+           self.y_coords = np.asarray(self.source_points[self.y_coord].values)
+           
+           # Check if coordinates are empty
+           if len(self.x_coords) == 0 or len(self.y_coords) == 0:
+               raise ValueError("Cannot initialize PointInterpolator with empty coordinate arrays")
+           
+       elif isinstance(self.source_points, xr.Dataset):
+           # Extract coordinates from xarray Dataset
+           if self.x_coord is None:
+               for coord_name in self.source_points.coords:
+                   if any(name in str(coord_name).lower() for name in ['lon', 'x', 'longitude']):
+                       self.x_coord = str(coord_name)
+                       break
+               if self.x_coord is None:
+                   raise ValueError("Could not find x coordinate in Dataset")
+           
+           if self.y_coord is None:
+               for coord_name in self.source_points.coords:
+                   if any(name in str(coord_name).lower() for name in ['lat', 'y', 'latitude']):
+                       self.y_coord = str(coord_name)
+                       break
+               if self.y_coord is None:
+                   raise ValueError("Could not find y coordinate in Dataset")
+           
+           self.x_coords = np.asarray(self.source_points[self.x_coord].values)
+           self.y_coords = np.asarray(self.source_points[self.y_coord].values)
+           
+           # Check if coordinates are empty
+           if len(self.x_coords) == 0 or len(self.y_coords) == 0:
+               raise ValueError("Cannot initialize PointInterpolator with empty coordinate arrays")
+           
+       elif isinstance(self.source_points, dict):
+           # Extract coordinates from dictionary
+           if self.x_coord is None:
+               for key in self.source_points.keys():
+                   if any(name in key.lower() for name in ['lon', 'x', 'longitude']):
+                       self.x_coord = key
+                       break
+               if self.x_coord is None:
+                   raise ValueError("Could not find x coordinate key in dictionary")
+           
+           if self.y_coord is None:
+               for key in self.source_points.keys():
+                   if any(name in key.lower() for name in ['lat', 'y', 'latitude']):
+                       self.y_coord = key
+                       break
+               if self.y_coord is None:
+                   raise ValueError("Could not find y coordinate key in dictionary")
+           
+           self.x_coords = np.asarray(self.source_points[self.x_coord])
+           self.y_coords = np.asarray(self.source_points[self.y_coord])
+           
+           # Check if coordinates are empty
+           if len(self.x_coords) == 0 or len(self.y_coords) == 0:
+               raise ValueError("Cannot initialize PointInterpolator with empty coordinate arrays")
+       else:
+           raise TypeError(
+               f"source_points must be pandas.DataFrame, xarray.Dataset, or dict, "
+               f"got {type(self.source_points)}"
+           )
+       
+       # Validate that coordinates have the same length
+       if len(self.x_coords) != len(self.y_coords):
+           raise ValueError("x and y coordinate arrays must have the same length")
         
         # Check for duplicate points
-        unique_points, unique_indices = np.unique(
-            np.column_stack([self.x_coords, self.y_coords]), 
-            axis=0, 
-            return_index=True
-        )
-        if len(unique_points) != len(self.x_coords):
-            warnings.warn(
-                f"Found {len(self.x_coords) - len(unique_points)} duplicate points in source data. "
-                f"Only unique points will be used for interpolation.",
-                UserWarning
-            )
-            # Keep only unique points
-            self.x_coords = self.x_coords[unique_indices]
-            self.y_coords = self.y_coords[unique_indices]
-            # Update source_points to only contain unique points
-            if isinstance(self.source_points, pd.DataFrame):
-                self.source_points = self.source_points.iloc[unique_indices]
-            elif isinstance(self.source_points, xr.Dataset):
-                # For xarray, this is more complex - we'll just issue a warning
-                warnings.warn(
-                    "Duplicate point removal for xarray Dataset is not fully implemented. "
-                    "Consider preprocessing your data to remove duplicates.",
-                    UserWarning
-                )
+       unique_points, unique_indices = np.unique(
+           np.column_stack([self.x_coords, self.y_coords]),
+           axis=0,
+           return_index=True
+       )
+       if len(unique_points) != len(self.x_coords):
+           warnings.warn(
+               f"Found {len(self.x_coords) - len(unique_points)} duplicate points in source data. "
+               f"Only unique points will be used for interpolation.",
+               UserWarning
+           )
+           # Keep only unique points
+           self.x_coords = self.x_coords[unique_indices]
+           self.y_coords = self.y_coords[unique_indices]
+           # Update source_points to only contain unique points
+           if isinstance(self.source_points, pd.DataFrame):
+               self.source_points = self.source_points.iloc[unique_indices]
+           elif isinstance(self.source_points, xr.Dataset):
+               # For xarray, this is more complex - we'll just issue a warning
+               warnings.warn(
+                   "Duplicate point removal for xarray Dataset is not fully implemented. "
+                   "Consider preprocessing your data to remove duplicates.",
+                   UserWarning
+               )
     
     def _build_spatial_index(self):
         """Build spatial index for efficient neighbor search."""
@@ -526,15 +538,30 @@ class PointInterpolator:
             # Calculate weighted average for each target point
             interpolated_values = []
             for i in range(len(target_points)):
-                if distances[i, 0] < 1e-8:  # Exact match
+                if distances.ndim > 1 and distances[i, 0] < 1e-8:  # Exact match for 2D array
+                    interpolated_values.append(data[indices[i, 0]])
+                elif distances.ndim == 1 and distances[i] < 1e-8:  # Exact match for 1D array
                     interpolated_values.append(data[indices[i, 0]])
                 else:
-                    weight_sum = np.sum(weights[i, :])
-                    if weight_sum == 0:
-                        interpolated_values.append(np.nan)
+                    if weights.ndim > 1:
+                        weight_sum = np.sum(weights[i, :])
+                        if weight_sum == 0:
+                            interpolated_values.append(np.nan)
+                        else:
+                            weighted_sum = np.sum(weights[i, :] * data[indices[i, :]])
+                            interpolated_values.append(weighted_sum / weight_sum)
                     else:
-                        weighted_sum = np.sum(weights[i, :] * data[indices[i, :]])
-                        interpolated_values.append(weighted_sum / weight_sum)
+                        # Handle 1D case for single point
+                        if indices.ndim > 1:
+                            selected_data = data[indices[i, :]]
+                        else:
+                            selected_data = data[indices[i]]
+                        weight_sum = np.sum(weights[i])
+                        if weight_sum == 0:
+                            interpolated_values.append(np.nan)
+                        else:
+                            weighted_sum = np.sum(weights[i] * selected_data)
+                            interpolated_values.append(weighted_sum / weight_sum)
             
             return np.array(interpolated_values)
     
