@@ -51,8 +51,12 @@ jobs:
           # Build the documentation
           mkdocs build
           
-          # Deploy current main branch to the 'latest' alias
+          # Deploy current main branch and create/update the 'latest' alias
+          # First, remove the 'latest' alias if it exists
+          mike delete --push latest || true
+          # Deploy to the 'latest' version
           mike deploy --push latest
+          # Set it as default
           mike set-default --push latest
 
       - name: Build and deploy versioned documentation
@@ -64,7 +68,7 @@ jobs:
           # Get version from tag
           VERSION=${GITHUB_REF#refs/tags/v}
           
-          # Deploy versioned documentation and update 'latest'
+          # Deploy versioned documentation
           mike deploy --push $VERSION
           # Remove the 'latest' alias if it exists, then create a new one pointing to this version
           mike delete --push latest || true
