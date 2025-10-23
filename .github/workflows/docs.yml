@@ -10,11 +10,21 @@ on:
     branches:
       - main
 
+# Allow one concurrent deployment
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-docs:
+  deploy-docs:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed for mike to push to gh-pages
+      contents: write      # Required for mike to manage versions
+      pages: write         # Required for GitHub Pages deployment
+      id-token: write      # Required for authentication with GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,60 +40,51 @@ jobs:
           python -m pip install --upgrade pip
           pip install mkdocs-material mkdocs-jupyter mike mkdocstrings[python]
 
-      - name: Build documentation (for testing PRs)
+      - name: Configure git for mike
         run: |
-          mkdocs build
-
-      - name: Deploy "latest" docs from main branch
-        # This step only runs on a push to the main branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          # Configure git user for mike
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Build and deploy documentation from main branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Build the documentation
+          mkdocs build
           
           # Deploy current main branch to the 'latest' alias
-          # Remove the 'latest' alias if it exists, then create a new one pointing to this version
-          mike delete --push latest || true
           mike deploy --push latest
           mike set-default --push latest
 
-  deploy-versioned-docs:
-    needs: build-docs
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write # Needed for mike to push to gh-pages
-    # This job only runs on a push of a tag starting with 'v'
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-      
-      - name: Install dependencies
+      - name: Build and deploy versioned documentation
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         run: |
-          python -m pip install --upgrade pip
-          pip install mkdocs-material mkdocs-jupyter mike mkdocstrings[python]
-      
-      - name: Deploy versioned documentation
-        run: |
-          # Configure git user for mike
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Build the documentation
+          mkdocs build
           
           # Get version from tag
           VERSION=${GITHUB_REF#refs/tags/v}
           
-          # Build and deploy versioned documentation
-          # First deploy the version
+          # Deploy versioned documentation and update 'latest'
           mike deploy --push $VERSION
           # Remove the 'latest' alias if it exists, then create a new one pointing to this version
           mike delete --push latest || true
           mike alias --push $VERSION latest
           # Set the default version
           mike set-default --push $VERSION
+
+      # The mike tool pushes directly to the gh-pages branch
+      # To ensure GitHub Pages is published, we'll add a deployment step
+      - name: Setup Pages
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        id: deployment
+        uses: actions/deploy-pages@v4
