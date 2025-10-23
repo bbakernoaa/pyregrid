@@ -522,6 +522,19 @@ class GridRegridder:
             # For map_coordinates, we need to handle the coordinate transformation properly
             # We'll use a more direct approach by creating a function that handles the regridding
             
+            # Determine output shape first
+            output_shape = list(data.shape)
+            # For curvilinear grids, target coordinates are 2D arrays
+            # The output should match the shape of the target coordinate arrays
+            if self._target_lon.ndim == 2 and self._target_lat.ndim == 2:
+                # For curvilinear grids, both coordinate arrays should have the same shape
+                output_shape[lon_axis] = self._target_lon.shape[1]  # longitude dimension size
+                output_shape[lat_axis] = self._target_lon.shape[0]  # latitude dimension size
+            else:
+                # For rectilinear grids, coordinates are 1D
+                output_shape[lon_axis] = len(self._target_lon)
+                output_shape[lat_axis] = len(self._target_lat)
+            
             # Create output coordinates
             output_coords = {}
             for coord_name in data.coords:
@@ -529,8 +542,11 @@ class GridRegridder:
                     # For curvilinear grids, preserve the 2D coordinate structure
                     if self._target_lon.ndim == 2:
                         # For 2D coordinates, create a Variable with proper dimensions and attributes
+                        # Use the target coordinate dimensions instead of data.dims to avoid conflicts
                         from xarray.core.variable import Variable
-                        coord_var = Variable(data.dims, self._target_lon)
+                        # For curvilinear grids, the coordinate should have the same dimensions as the target coordinate
+                        # The coordinate variable should have the same dimensions as the target grid's lat/lon dimensions
+                        coord_var = Variable((self._target_lat_name, self._target_lon_name), self._target_lon)
                         # Preserve original attributes if they exist in the source grid
                         if hasattr(self.source_grid, 'coords') and self._source_lon_name in self.source_grid.coords:
                             coord_var.attrs.update(self.source_grid.coords[self._source_lon_name].attrs)
@@ -541,8 +557,11 @@ class GridRegridder:
                     # For curvilinear grids, preserve the 2D coordinate structure
                     if self._target_lat.ndim == 2:
                         # For 2D coordinates, create a Variable with proper dimensions and attributes
+                        # Use the target coordinate dimensions instead of data.dims to avoid conflicts
                         from xarray.core.variable import Variable
-                        coord_var = Variable(data.dims, self._target_lat)
+                        # For curvilinear grids, the coordinate should have the same dimensions as the target coordinate
+                        # The coordinate variable should have the same dimensions as the target grid's lat/lon dimensions
+                        coord_var = Variable((self._target_lat_name, self._target_lon_name), self._target_lat)
                         # Preserve original attributes if they exist in the source grid
                         if hasattr(self.source_grid, 'coords') and self._source_lat_name in self.source_grid.coords:
                             coord_var.attrs.update(self.source_grid.coords[self._source_lat_name].attrs)
@@ -555,19 +574,6 @@ class GridRegridder:
                 else:
                     # Keep other coordinates as they are
                     output_coords[coord_name] = data.coords[coord_name]
-            
-            # Determine output shape
-            output_shape = list(data.shape)
-            # For curvilinear grids, target coordinates are 2D arrays
-            # The output should match the shape of the target coordinate arrays
-            if self._target_lon.ndim == 2 and self._target_lat.ndim == 2:
-                # For curvilinear grids, both coordinate arrays should have the same shape
-                output_shape[lon_axis] = self._target_lon.shape[1]  # longitude dimension size
-                output_shape[lat_axis] = self._target_lon.shape[0]  # latitude dimension size
-            else:
-                # For rectilinear grids, coordinates are 1D
-                output_shape[lon_axis] = len(self._target_lon)
-                output_shape[lat_axis] = len(self._target_lat)
             
             # Check if data contains Dask arrays
             is_dask = hasattr(data.data, 'chunks') and data.data.__class__.__module__.startswith('dask')

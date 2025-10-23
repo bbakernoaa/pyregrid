@@ -31,7 +31,7 @@ pip install pyregrid
 
 ```python
 import xarray as xr
-import pyregrdi
+import pyregrid
 
 # Load your data
 ds = xr.open_dataset("your_data.nc")
