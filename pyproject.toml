@@ -69,7 +69,7 @@ test = [
     "pooch>=0.7.0"
 ]
 all = [
-    "pyregrid[dask,sklearn,docs,dev,test]"
+    "pyregrid[dask,sklearn,docs,dev,test,shapely]"
 ]
 
 [project.urls]

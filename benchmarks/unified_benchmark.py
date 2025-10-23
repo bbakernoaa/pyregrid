@@ -38,7 +38,7 @@ class BenchmarkConfiguration:
     accuracy_threshold: float = 1e-4
     scalability_threshold: float = 0.7 # efficiency percentage
     iterations: int = 3
-    methods: List[str] = None  # Default to ['bilinear', 'nearest']
+    methods: Optional[List[str]] = None  # Default to ['bilinear', 'nearest']
     
     def __post_init__(self):
         if self.methods is None:
@@ -53,7 +53,7 @@ class UnifiedBenchmarkRunner:
     dimensions of PyRegrid functionality.
     """
     
-    def __init__(self, config: BenchmarkConfiguration = None):
+    def __init__(self, config: Optional[BenchmarkConfiguration] = None):
         self.config = config or BenchmarkConfiguration()
         self.performance_benchmark = HighResolutionBenchmark(
             use_dask=self.config.use_dask,
@@ -78,9 +78,9 @@ class UnifiedBenchmarkRunner:
             'summary': {}
         }
     
-    def run_comprehensive_benchmark(self, 
+    def run_comprehensive_benchmark(self,
                                   resolutions: List[Tuple[int, int]],
-                                  methods: List[str] = None) -> Dict[str, Any]:
+                                  methods: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Run a comprehensive benchmark across all dimensions.
         
@@ -91,7 +91,7 @@ class UnifiedBenchmarkRunner:
         Returns:
             Dictionary containing all benchmark results
         """
-        methods = methods or self.config.methods
+        methods = methods or self.config.methods or ['bilinear', 'nearest']
         
         print(f"Starting comprehensive benchmark with {len(resolutions)} resolutions and {len(methods)} methods")
         
@@ -141,7 +141,7 @@ class UnifiedBenchmarkRunner:
                     
                     result = self.performance_benchmark.benchmark_regridding_operation(
                         source_data=source_data,
-                        target_coords=(target_points[0, :], target_points[1, :]),
+                        target_coords=(target_points[:, 1], target_points[:, 0]),  # Correct format: (latitudes, longitudes)
                         method=method,
                         name=f'perf_{method}_{height}x{width}_iter_{i}'
                     )
@@ -272,7 +272,7 @@ class UnifiedBenchmarkRunner:
         
         return summary
     
-    def save_results(self, filename: str = None) -> str:
+    def save_results(self, filename: Optional[str] = None) -> str:
         """Save benchmark results to a JSON file."""
         if filename is None:
             filename = f"unified_benchmark_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -325,11 +325,11 @@ class UnifiedBenchmarkRunner:
 
 
 # Convenience function for running standard benchmark workflows
-def run_standard_benchmark(resolutions: List[Tuple[int, int]] = None,
-                          methods: List[str] = None,
+def run_standard_benchmark(resolutions: Optional[List[Tuple[int, int]]] = None,
+                          methods: Optional[List[str]] = None,
                           output_dir: str = "./benchmark_results",
                           use_dask: bool = True,
-                          dask_client: 'Client' = None) -> str:
+                          dask_client: Optional['Client'] = None) -> str:
     """
     Run a standard benchmark workflow with common configurations.
     

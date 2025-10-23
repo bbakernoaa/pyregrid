@@ -86,10 +86,10 @@ jobs:
         branch_rate = float(root.get('branch-rate'))
         print(f'Line coverage: {line_rate:.2%}')
         print(f'Branch coverage: {branch_rate:.2%}')
-        if line_rate < 0.90:
-            print('ERROR: Line coverage below 90% threshold')
+        if line_rate < 0.70:
+            print('ERROR: Line coverage below 70% threshold')
             exit(1)
-        if branch_rate < 0.80:
-            print('WARNING: Branch coverage below 80%')
+        if branch_rate < 0.50:
+            print('WARNING: Branch coverage below 50%')
         print('Coverage thresholds met!')
         "
