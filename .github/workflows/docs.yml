@@ -80,7 +80,8 @@ jobs:
           # Build and deploy versioned documentation
           # First deploy the version
           mike deploy --push $VERSION
-          # Then update the 'latest' alias to point to this version
-          mike alias --push $VERSION latest --update-aliases
+          # Remove the 'latest' alias if it exists, then create a new one pointing to this version
+          mike delete --push latest || true
+          mike alias --push $VERSION latest
           # Set the default version
           mike set-default --push $VERSION
