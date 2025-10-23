@@ -545,8 +545,9 @@ class GridRegridder:
                         # Use the target coordinate dimensions instead of data.dims to avoid conflicts
                         from xarray.core.variable import Variable
                         # For curvilinear grids, the coordinate should have the same dimensions as the target coordinate
-                        # The coordinate variable should have the same dimensions as the target grid's lat/lon dimensions
-                        coord_var = Variable((self._target_lat_name, self._target_lon_name), self._target_lon)
+                        # For curvilinear grids, the coordinate should have the same dimensions as the data array
+                        # We need to use the actual dimensions of the data array to avoid conflicts
+                        coord_var = Variable(data.dims, self._target_lon)
                         # Preserve original attributes if they exist in the source grid
                         if hasattr(self.source_grid, 'coords') and self._source_lon_name in self.source_grid.coords:
                             coord_var.attrs.update(self.source_grid.coords[self._source_lon_name].attrs)
@@ -559,9 +560,8 @@ class GridRegridder:
                         # For 2D coordinates, create a Variable with proper dimensions and attributes
                         # Use the target coordinate dimensions instead of data.dims to avoid conflicts
                         from xarray.core.variable import Variable
-                        # For curvilinear grids, the coordinate should have the same dimensions as the target coordinate
-                        # The coordinate variable should have the same dimensions as the target grid's lat/lon dimensions
-                        coord_var = Variable((self._target_lat_name, self._target_lon_name), self._target_lat)
+                        # For curvilinear grids, the coordinate should have the same dimensions as the data array
+                        coord_var = Variable(data.dims, self._target_lat)
                         # Preserve original attributes if they exist in the source grid
                         if hasattr(self.source_grid, 'coords') and self._source_lat_name in self.source_grid.coords:
                             coord_var.attrs.update(self.source_grid.coords[self._source_lat_name].attrs)
