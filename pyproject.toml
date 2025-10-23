@@ -40,6 +40,9 @@ dask = [
     "dask[complete]>=2.0",
     "distributed>=2.0"
 ]
+shapely = [
+    "shapely>=1.7.0"
+]
 sklearn = [
     "scikit-learn>=1.0.0"
 ]
