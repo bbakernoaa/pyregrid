@@ -43,6 +43,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
           # Deploy current main branch to the 'latest' alias
+          # Remove the 'latest' alias if it exists, then create a new one pointing to this version
+          mike delete --push latest || true
           mike deploy --push latest
           mike set-default --push latest
 
@@ -50,32 +52,30 @@ jobs:
     needs: build-docs
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pages: write      # Required to deploy to GitHub Pages
-      id-token: write   # Required for authentication
+      contents: write # Needed for mike to push to gh-pages
     # This job only runs on a push of a tag starting with 'v'
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install mkdocs-material mkdocs-jupyter mike mkdocstrings[python]
-
+      
       - name: Deploy versioned documentation
         run: |
           # Configure git user for mike
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
+          
           # Get version from tag
           VERSION=${GITHUB_REF#refs/tags/v}
           
