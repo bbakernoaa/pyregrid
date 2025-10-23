@@ -114,16 +114,7 @@ class BilinearInterpolator(BaseInterpolator):
         """
         # Check if data is a Dask array for out-of-core processing
         if hasattr(data, 'chunks') and data.__class__.__module__.startswith('dask'):
-            # For the test to pass, we need to ensure that compute() is called
-            # when we have a dask array, so we'll call compute directly in the fallback case
-            if hasattr(data, 'compute'):
-                return self._interpolate_numpy(
-                    data.compute() if hasattr(data, 'compute') else data,
-                    coordinates,
-                    **kwargs
-                )
-            else:
-                return self._interpolate_numpy(data, coordinates, **kwargs)
+            return self._interpolate_dask(data, coordinates, **kwargs)
         else:
             return self._interpolate_numpy(data, coordinates, **kwargs)
     
@@ -217,99 +208,53 @@ class BilinearInterpolator(BaseInterpolator):
         """
         try:
             import dask.array as da
+            from dask.delayed import delayed
             import numpy as np
         except ImportError:
             # If dask is not available, fall back to numpy computation
-            return map_coordinates(
+            return self._interpolate_numpy(
                 data.compute() if hasattr(data, 'compute') else data,
                 coordinates,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
                 **kwargs
             )
         
-        # For map_coordinates with dask arrays, we need a different approach
-        # since map_coordinates doesn't work directly with dask arrays
-        # We'll use a block-wise approach that processes chunks appropriately
+        # Since map_coordinates doesn't work directly with dask arrays,
+        # we'll return a delayed computation that will be executed later
+        # when the user explicitly calls compute() on the result
         
-        # Convert coordinates to dask array if they're numpy arrays
-        if isinstance(coordinates, np.ndarray):
-            coords_dask = da.from_array(coordinates, chunks='auto')
+        # Create a delayed function that will perform the interpolation
+        delayed_interp = delayed(self._interpolate_numpy)
+        
+        # Compute coordinates now (since they are needed for the interpolation function)
+        # but keep the data as a dask array for lazy evaluation
+        if isinstance(coordinates, (list, tuple)):
+            computed_coords = []
+            for coord in coordinates:
+                if isinstance(coord, np.ndarray):
+                    # Keep as numpy array, don't convert to dask
+                    computed_coords.append(coord)
+                elif hasattr(coord, 'compute'):
+                    computed_coords.append(coord.compute())
+                else:
+                    computed_coords.append(coord)
+        elif isinstance(coordinates, np.ndarray):
+            computed_coords = coordinates  # Already a numpy array
+        elif hasattr(coordinates, 'compute'):
+            computed_coords = coordinates.compute()
         else:
-            coords_dask = coordinates
+            computed_coords = coordinates
         
-        # Determine optimal chunk size if not provided
-        if chunk_size is None:
-            # Use the data's existing chunk size if available
-            if hasattr(data, 'chunks'):
-                chunk_size = data.chunks
-            else:
-                chunk_size = 'auto'
+        # Apply the delayed interpolation function to the dask data with computed coordinates
+        delayed_result = delayed_interp(data, computed_coords, **kwargs)
         
-        # Define the function to apply to each block
-        def apply_interp(block, block_info=None):
-            # Get the coordinates for this block
-            # For now, we'll compute the coordinates (this is a limitation of map_coordinates)
-            computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-            return map_coordinates(
-                block,
-                computed_coords,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
-                **kwargs
-            )
+        # Convert the delayed result to a dask array to maintain consistency
+        # We need to determine the output shape and dtype
+        # For now, we'll use from_delayed with a known shape (this is a limitation)
+        # In practice, this would require more sophisticated shape inference
         
-        # Apply the interpolation function to each chunk
-        if hasattr(data, 'map_blocks'):
-            # Use dask's map_blocks for true out-of-core processing
-            try:
-                result = data.map_blocks(
-                    apply_interp,
-                    dtype=data.dtype,
-                    drop_axis=None,
-                    new_axis=None,
-                    **kwargs
-                )
-            except Exception:
-                # Fallback: compute the entire operation
-                computed_data = data.compute() if hasattr(data, 'compute') else data
-                computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-                
-                # Apply map_coordinates to the computed data
-                result_values = map_coordinates(
-                    computed_data,
-                    computed_coords,
-                    order=self.order,
-                    mode=self.mode,
-                    cval=self.cval,
-                    **kwargs
-                )
-                
-                # Convert the result back to a dask array
-                result_chunks = 'auto' if chunk_size is None else chunk_size  # type: ignore
-                result = da.from_array(result_values, chunks=result_chunks)
-        else:
-            # Fallback: compute the entire operation
-            computed_data = data.compute() if hasattr(data, 'compute') else data
-            computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-            
-            # Apply map_coordinates to the computed data
-            result_values = map_coordinates(
-                computed_data,
-                computed_coords,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
-                **kwargs
-            )
-            
-            # Convert the result back to a dask array
-            result_chunks = 'auto' if chunk_size is None else chunk_size  # type: ignore
-            result = da.from_array(result_values, chunks=result_chunks)
-        
-        return result
+        # Since we can't easily determine the output shape without computing a sample,
+        # we'll return the delayed object directly, which will be computed when needed
+        return delayed_result
 
 
 class ConservativeInterpolator(BaseInterpolator):
@@ -715,24 +660,15 @@ class ConservativeInterpolator(BaseInterpolator):
         
         # Check if data is a Dask array for out-of-core processing
         if hasattr(data, 'chunks') and data.__class__.__module__.startswith('dask'):
-            # For the test to pass, we need to ensure that compute() is called
-            # when we have a dask array, so we'll call compute directly in the fallback case
-            if hasattr(data, 'compute'):
-                return self._interpolate_numpy(
-                    data.compute() if hasattr(data, 'compute') else data,
-                    source_lon=source_lon,
-                    source_lat=source_lat,
-                    target_lon=target_lon,
-                    target_lat=target_lat,
-                    **kwargs
-                )
-            else:
-                return self._interpolate_numpy(data,
-                                             source_lon=source_lon,
-                                             source_lat=source_lat,
-                                             target_lon=target_lon,
-                                             target_lat=target_lat,
-                                             **kwargs)
+            return self._interpolate_dask(
+                data,
+                coordinates=None,  # coordinates not used in conservative interpolation
+                source_lon=source_lon,
+                source_lat=source_lat,
+                target_lon=target_lon,
+                target_lat=target_lat,
+                **kwargs
+            )
         else:
             return self._interpolate_numpy(data,
                                          source_lon=source_lon,
@@ -893,6 +829,7 @@ class ConservativeInterpolator(BaseInterpolator):
         """
         try:
             import dask.array as da
+            from dask.delayed import delayed
             import numpy as np
         except ImportError:
             # If dask is not available, fall back to numpy computation
@@ -905,24 +842,29 @@ class ConservativeInterpolator(BaseInterpolator):
                 **kwargs
             )
         
-        # Determine optimal chunk size if not provided
-        if chunk_size is None:
-            # Use the data's existing chunk size if available
-            if hasattr(data, 'chunks'):
-                chunk_size = data.chunks
-            else:
-                chunk_size = None  # Let dask decide
+        # Compute weights using numpy arrays (since they're based on coordinates, not data)
+        # This is acceptable since coordinate arrays are typically small
+        weights = self._compute_overlap_weights(source_lon, source_lat, target_lon, target_lat)
         
-        # For conservative interpolation with dask, we need to compute weights
-        # first since they're based on the grid geometry, not the data values
-        # Compute weights using numpy arrays (since they're based on coordinates)
-        # Always compute with the provided coordinates when they are passed as parameters
-        self.weights = self._compute_overlap_weights(source_lon, source_lat, target_lon, target_lat)
+        # Save the computed weights temporarily
+        original_weights = self.weights
+        self.weights = weights
         
         # Define the function to apply to each block
         def apply_conservative_interp(block, block_info=None):
             # Apply the conservative interpolation to this block
-            return self._interpolate_numpy(
+            # Temporarily set weights for this computation
+            interpolator = ConservativeInterpolator(
+                source_lon=source_lon,
+                source_lat=source_lat,
+                target_lon=target_lon,
+                target_lat=target_lat,
+                mode=self.mode,
+                cval=self.cval,
+                prefilter=self.prefilter
+            )
+            interpolator.weights = weights  # Set the precomputed weights
+            return interpolator._interpolate_numpy(
                 block,
                 source_lon=source_lon,
                 source_lat=source_lat,
@@ -930,58 +872,29 @@ class ConservativeInterpolator(BaseInterpolator):
                 target_lat=target_lat
             )
         
-        # Apply the interpolation function to each chunk
-        if hasattr(data, 'map_blocks'):
-            # Use dask's map_blocks for true out-of-core processing
-            try:
-                # Force an exception to trigger the fallback path for testing
-                # In a real implementation, this would be a legitimate failure condition
-                raise Exception("Forced exception to trigger fallback path")
-                result = data.map_blocks(
-                    apply_conservative_interp,
-                    dtype=data.dtype,
-                    drop_axis=None,  # Don't drop any axes
-                    new_axis=None,   # Don't add any new axes
-                    **kwargs
-                )
-            except Exception:
-                # Fallback: compute the entire operation
-                # Ensure compute is called (important for mock verification)
-                if hasattr(data, 'compute'):
-                    computed_data = data.compute()
-                else:
-                    computed_data = data
-                
-                # Apply conservative interpolation to the computed data
-                result_values = self._interpolate_numpy(
-                    computed_data,
-                    source_lon=source_lon,
-                    source_lat=source_lat,
-                    target_lon=target_lon,
-                    target_lat=target_lat
-                )
-                
-                # Return numpy array instead of dask array to match test expectations
-                result = result_values
-        else:
-            # Fallback: compute the entire operation
-            # Ensure compute is called (important for mock verification)
-            if hasattr(data, 'compute'):
-                data.compute()
-            computed_data = data.compute() if hasattr(data, 'compute') else data
-            
-            # Apply conservative interpolation to the computed data
-            result_values = self._interpolate_numpy(
-                computed_data,
+        # Use dask's map_blocks for true out-of-core processing
+        try:
+            result = data.map_blocks(
+                apply_conservative_interp,
+                dtype=data.dtype,
+                drop_axis=None,  # Don't drop any axes
+                new_axis=None,   # Don't add any new axes
+                **kwargs
+            )
+        except Exception:
+            # If map_blocks fails, return a delayed computation
+            delayed_func = delayed(self._interpolate_numpy)
+            result = delayed_func(
+                data,
                 source_lon=source_lon,
                 source_lat=source_lat,
                 target_lon=target_lon,
-                target_lat=target_lat
+                target_lat=target_lat,
+                **kwargs
             )
-            
-            # Convert the result back to a dask array
-            result_chunks = 'auto' if chunk_size is None else chunk_size  # type: ignore
-            result = da.from_array(result_values, chunks=result_chunks)
+        
+        # Restore original weights
+        self.weights = original_weights
         
         return result
 
@@ -1033,17 +946,7 @@ class CubicInterpolator(BaseInterpolator):
         """
         # Check if data is a Dask array for out-of-core processing
         if hasattr(data, 'chunks') and data.__class__.__module__.startswith('dask'):
-            # For the test to pass, we need to ensure that compute() is called
-            # when we have a dask array, so we'll call compute directly in the fallback case
-            if hasattr(data, 'compute'):
-                computed_data = data.compute()
-                # Check if the computed result is still a mock or invalid object
-                if hasattr(computed_data, '__class__') and computed_data.__class__.__module__ == 'unittest.mock':
-                    # If it's a mock, fall back to numpy array
-                    computed_data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])  # Default test data
-                return self._interpolate_numpy(computed_data, coordinates, **kwargs)
-            else:
-                return self._interpolate_numpy(data, coordinates, **kwargs)
+            return self._interpolate_dask(data, coordinates, **kwargs)
         else:
             return self._interpolate_numpy(data, coordinates, **kwargs)
     
@@ -1136,95 +1039,47 @@ class CubicInterpolator(BaseInterpolator):
         """
         try:
             import dask.array as da
+            from dask.delayed import delayed
             import numpy as np
         except ImportError:
             # If dask is not available, fall back to numpy computation
-            return map_coordinates(
+            return self._interpolate_numpy(
                 data.compute() if hasattr(data, 'compute') else data,
                 coordinates,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
                 **kwargs
             )
         
-        # Convert coordinates to dask array if they're numpy arrays
-        if isinstance(coordinates, np.ndarray):
-            coords_dask = da.from_array(coordinates, chunks='auto')
+        # Since map_coordinates doesn't work directly with dask arrays,
+        # we'll return a delayed computation that will be executed later
+        # when the user explicitly calls compute() on the result
+        
+        # Create a delayed function that will perform the interpolation
+        delayed_interp = delayed(self._interpolate_numpy)
+        
+        # Compute coordinates now (since they are needed for the interpolation function)
+        # but keep the data as a dask array for lazy evaluation
+        if isinstance(coordinates, (list, tuple)):
+            computed_coords = []
+            for coord in coordinates:
+                if isinstance(coord, np.ndarray):
+                    # Keep as numpy array, don't convert to dask
+                    computed_coords.append(coord)
+                elif hasattr(coord, 'compute'):
+                    computed_coords.append(coord.compute())
+                else:
+                    computed_coords.append(coord)
+        elif isinstance(coordinates, np.ndarray):
+            computed_coords = coordinates  # Already a numpy array
+        elif hasattr(coordinates, 'compute'):
+            computed_coords = coordinates.compute()
         else:
-            coords_dask = coordinates
+            computed_coords = coordinates
         
-        # Determine optimal chunk size if not provided
-        if chunk_size is None:
-            # Use the data's existing chunk size if available
-            if hasattr(data, 'chunks'):
-                chunk_size = data.chunks
-            else:
-                chunk_size = 'auto'  # type: ignore
+        # Apply the delayed interpolation function to the dask data with computed coordinates
+        delayed_result = delayed_interp(data, computed_coords, **kwargs)
         
-        # Define the function to apply to each block
-        def apply_interp(block, block_info=None):
-            # Get the coordinates for this block
-            # For now, we'll compute the coordinates (this is a limitation of map_coordinates)
-            computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-            return map_coordinates(
-                block,
-                computed_coords,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
-                **kwargs
-            )
-        
-        # Apply the interpolation function to each chunk
-        if hasattr(data, 'map_blocks'):
-            # Use dask's map_blocks for true out-of-core processing
-            try:
-                result = data.map_blocks(
-                    apply_interp,
-                    dtype=data.dtype,
-                    drop_axis=None,
-                    new_axis=None,
-                    **kwargs
-                )
-            except Exception:
-                # Fallback: compute the entire operation
-                computed_data = data.compute() if hasattr(data, 'compute') else data
-                computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-                
-                # Apply map_coordinates to the computed data
-                result_values = map_coordinates(
-                    computed_data,
-                    computed_coords,
-                    order=self.order,
-                    mode=self.mode,
-                    cval=self.cval,
-                    **kwargs
-                )
-                
-                # Convert the result back to a dask array
-                result_chunks = 'auto' if chunk_size is None else chunk_size
-                result = da.from_array(result_values, chunks=result_chunks)
-        else:
-            # Fallback: compute the entire operation
-            computed_data = data.compute() if hasattr(data, 'compute') else data
-            computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-            
-            # Apply map_coordinates to the computed data
-            result_values = map_coordinates(
-                computed_data,
-                computed_coords,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
-                **kwargs
-            )
-            
-            # Convert the result back to a dask array
-            result_chunks = 'auto' if chunk_size is None else chunk_size
-            result = da.from_array(result_values, chunks=result_chunks)
-        
-        return result
+        # Return the delayed object directly, which will be computed when needed
+        return delayed_result
 
 
 class NearestInterpolator(BaseInterpolator):
@@ -1274,16 +1129,7 @@ class NearestInterpolator(BaseInterpolator):
         """
         # Check if data is a Dask array for out-of-core processing
         if hasattr(data, 'chunks') and data.__class__.__module__.startswith('dask'):
-            # For the test to pass, we need to ensure that compute() is called
-            # when we have a dask array, so we'll call compute directly in the fallback case
-            if hasattr(data, 'compute'):
-                return self._interpolate_numpy(
-                    data.compute() if hasattr(data, 'compute') else data,
-                    coordinates,
-                    **kwargs
-                )
-            else:
-                return self._interpolate_numpy(data, coordinates, **kwargs)
+            return self._interpolate_dask(data, coordinates, **kwargs)
         else:
             return self._interpolate_numpy(data, coordinates, **kwargs)
     
@@ -1362,92 +1208,44 @@ class NearestInterpolator(BaseInterpolator):
         """
         try:
             import dask.array as da
+            from dask.delayed import delayed
             import numpy as np
         except ImportError:
             # If dask is not available, fall back to numpy computation
-            return map_coordinates(
+            return self._interpolate_numpy(
                 data.compute() if hasattr(data, 'compute') else data,
                 coordinates,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
                 **kwargs
             )
         
-        # Convert coordinates to dask array if they're numpy arrays
-        if isinstance(coordinates, np.ndarray):
-            coords_dask = da.from_array(coordinates, chunks='auto')
+        # Since map_coordinates doesn't work directly with dask arrays,
+        # we'll return a delayed computation that will be executed later
+        # when the user explicitly calls compute() on the result
+        
+        # Create a delayed function that will perform the interpolation
+        delayed_interp = delayed(self._interpolate_numpy)
+        
+        # Compute coordinates now (since they are needed for the interpolation function)
+        # but keep the data as a dask array for lazy evaluation
+        if isinstance(coordinates, (list, tuple)):
+            computed_coords = []
+            for coord in coordinates:
+                if isinstance(coord, np.ndarray):
+                    # Keep as numpy array, don't convert to dask
+                    computed_coords.append(coord)
+                elif hasattr(coord, 'compute'):
+                    computed_coords.append(coord.compute())
+                else:
+                    computed_coords.append(coord)
+        elif isinstance(coordinates, np.ndarray):
+            computed_coords = coordinates  # Already a numpy array
+        elif hasattr(coordinates, 'compute'):
+            computed_coords = coordinates.compute()
         else:
-            coords_dask = coordinates
+            computed_coords = coordinates
         
-        # Determine optimal chunk size if not provided
-        if chunk_size is None:
-            # Use the data's existing chunk size if available
-            if hasattr(data, 'chunks'):
-                chunk_size = data.chunks
-            else:
-                chunk_size = 'auto'
+        # Apply the delayed interpolation function to the dask data with computed coordinates
+        delayed_result = delayed_interp(data, computed_coords, **kwargs)
         
-        # Define the function to apply to each block
-        def apply_interp(block, block_info=None):
-            # Get the coordinates for this block
-            # For now, we'll compute the coordinates (this is a limitation of map_coordinates)
-            computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-            return map_coordinates(
-                block,
-                computed_coords,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
-                **kwargs
-            )
-        
-        # Apply the interpolation function to each chunk
-        if hasattr(data, 'map_blocks'):
-            # Use dask's map_blocks for true out-of-core processing
-            try:
-                result = data.map_blocks(
-                    apply_interp,
-                    dtype=data.dtype,
-                    drop_axis=None,
-                    new_axis=None,
-                    **kwargs
-                )
-            except Exception:
-                # Fallback: compute the entire operation
-                computed_data = data.compute() if hasattr(data, 'compute') else data
-                computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-                
-                # Apply map_coordinates to the computed data
-                result_values = map_coordinates(
-                    computed_data,
-                    computed_coords,
-                    order=self.order,
-                    mode=self.mode,
-                    cval=self.cval,
-                    **kwargs
-                )
-                
-                # Convert the result back to a dask array
-                result_chunks = 'auto' if chunk_size is None else chunk_size  # type: ignore
-                result = da.from_array(result_values, chunks=result_chunks)
-        else:
-            # Fallback: compute the entire operation
-            computed_data = data.compute() if hasattr(data, 'compute') else data
-            computed_coords = coords_dask.compute() if hasattr(coords_dask, 'compute') else coords_dask
-            
-            # Apply map_coordinates to the computed data
-            result_values = map_coordinates(
-                computed_data,
-                computed_coords,
-                order=self.order,
-                mode=self.mode,
-                cval=self.cval,
-                **kwargs
-            )
-            
-            # Convert the result back to a dask array
-            result_chunks = 'auto' if chunk_size is None else chunk_size  # type: ignore
-            result = da.from_array(result_values, chunks=result_chunks)
-        
-        return result
+        # Return the delayed object directly, which will be computed when needed
+        return delayed_result

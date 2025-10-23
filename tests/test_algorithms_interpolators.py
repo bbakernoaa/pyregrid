@@ -136,8 +136,8 @@ class TestBilinearInterpolator:
             assert result.shape == (3,)
             assert not np.isnan(result).any()
     
-    def test_interpolate_dask_fallback(self):
-        """Test bilinear interpolation with dask array fallback."""
+    def test_interpolate_dask_lazy_evaluation(self):
+        """Test bilinear interpolation with dask array lazy evaluation."""
         # Create mock dask array
         mock_dask_array = Mock()
         mock_dask_array.__class__.__module__ = 'dask.array'
@@ -150,9 +150,11 @@ class TestBilinearInterpolator:
         interpolator = BilinearInterpolator()
         result = interpolator.interpolate(data, coordinates)
         
-        # Should call compute and return numpy array
-        mock_dask_array.compute.assert_called_once()
-        assert isinstance(result, np.ndarray)
+        # Should NOT call compute (lazy evaluation)
+        mock_dask_array.compute.assert_not_called()
+        # Result should be a delayed object for lazy evaluation
+        # The exact type depends on dask.delayed implementation
+        assert hasattr(result, 'compute') or hasattr(result, 'dask')
     
     @patch('pyregrid.algorithms.interpolators.map_coordinates')
     def test_interpolate_with_kwargs(self, mock_map_coordinates):
@@ -419,8 +421,8 @@ class TestConservativeInterpolator:
         assert result.shape == (2, 2)
         assert not np.isnan(result).any()
     
-    def test_interpolate_dask_fallback(self):
-        """Test conservative interpolation with dask array fallback."""
+    def test_interpolate_dask_lazy_evaluation(self):
+        """Test conservative interpolation with dask array lazy evaluation."""
         # Create mock dask array
         mock_dask_array = Mock()
         mock_dask_array.__class__.__module__ = 'dask.array'
@@ -441,9 +443,11 @@ class TestConservativeInterpolator:
             target_lat=target_lat
         )
         
-        # Should call compute and return numpy array
-        mock_dask_array.compute.assert_called_once()
-        assert isinstance(result, np.ndarray)
+        # Should NOT call compute (lazy evaluation)
+        mock_dask_array.compute.assert_not_called()
+        # Result should be a delayed object for lazy evaluation
+        # The exact type depends on dask.delayed implementation
+        assert hasattr(result, 'compute') or hasattr(result, 'dask')
 
 
 class TestInterpolationConsistency:

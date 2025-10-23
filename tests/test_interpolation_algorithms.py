@@ -251,8 +251,11 @@ class TestInterpolatorDaskSupport:
         interpolator = BilinearInterpolator()
         result = interpolator.interpolate(mock_dask_array, coordinates)
         
-        # Should still work (even if not fully implemented)
-        assert isinstance(result, (np.ndarray, Mock))
+        # Should return a lazy evaluation object (Delayed from dask.delayed)
+        # The result should have a compute method for lazy evaluation
+        assert hasattr(result, 'compute') or hasattr(result, 'dask')
+        # Should NOT call compute on the input dask array (lazy evaluation)
+        mock_dask_array.compute.assert_not_called()
     
     def test_interpolate_with_dask_like_object(self):
         """Test interpolation with dask-like object."""

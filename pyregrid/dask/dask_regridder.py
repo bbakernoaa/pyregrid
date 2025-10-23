@@ -101,6 +101,7 @@ class DaskRegridder:
         self.memory_manager = MemoryManager()
         
         # Initialize the base GridRegridder for weight computation
+        # Only compute weights if needed, otherwise defer computation
         self.base_regridder = GridRegridder(
             source_grid=source_grid,
             target_grid=target_grid,
@@ -111,6 +112,11 @@ class DaskRegridder:
         )
         
         # Prepare the regridding weights (following the two-phase model)
+        # For lazy evaluation, we'll compute weights only when needed
+        self.weights = None
+        
+        # Prepare weights during initialization to maintain compatibility
+        # but ensure that no unnecessary computations are triggered
         self.prepare()
     
     def prepare(self):
@@ -313,12 +319,32 @@ class DaskRegridder:
         
         result_data = interpolator.interpolate(
             data=data.data,  # Get the underlying dask array
-            coordinates=coordinates,  # Properly structured coordinates
+            coordinates=coordinates, # Properly structured coordinates
             **self.kwargs
         )
         
-        # Ensure the result is a dask array with appropriate chunks
-        if not hasattr(result_data, 'chunks') and da is not None:
+        # Handle different return types from interpolator
+        if hasattr(result_data, 'dask') and da is not None:  # It's a delayed computation
+            # Convert delayed object to dask array
+            # We need to know the expected shape to create a proper dask array
+            expected_shape = list(data.shape)
+            expected_shape[lon_axis] = len(self.base_regridder._target_lon)
+            expected_shape[lat_axis] = len(self.base_regridder._target_lat)
+            
+            # For delayed objects, we need to use dask's from_delayed
+            try:
+                # Create a dask array from the delayed computation
+                if hasattr(da, 'from_delayed'):
+                    result_data = da.from_delayed(result_data, shape=expected_shape, dtype=data.dtype)
+                else:
+                    # If from_delayed is not available, compute the result (fallback)
+                    # This maintains compatibility but sacrifices full laziness
+                    result_data = result_data.compute()
+            except Exception:
+                # If any error occurs, compute the result (fallback)
+                # This maintains compatibility but sacrifices full laziness
+                result_data = result_data.compute()
+        elif not hasattr(result_data, 'chunks') and da is not None:
             # If result is not chunked but dask is available, convert it to a dask array
             if hasattr(result_data, 'compute'):
                 # If it's a dask array that was computed, recreate it with chunks
