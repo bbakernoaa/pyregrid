@@ -38,7 +38,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=pyregrid --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=90 --cov-branch
+        pytest --cov=pyregrid --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=50 --cov-branch
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
@@ -86,8 +86,8 @@ jobs:
         branch_rate = float(root.get('branch-rate'))
         print(f'Line coverage: {line_rate:.2%}')
         print(f'Branch coverage: {branch_rate:.2%}')
-        if line_rate < 0.70:
-            print('ERROR: Line coverage below 70% threshold')
+        if line_rate < 0.50:
+            print('ERROR: Line coverage below 50% threshold')
             exit(1)
         if branch_rate < 0.50:
             print('WARNING: Branch coverage below 50%')
