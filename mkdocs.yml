@@ -1,5 +1,5 @@
 site_name: PyRegrid Documentation
-site_url: https://pyregrid.github.io/pyregrid
+site_url: https://bbakernoaa.github.io/pyregrid
 repo_url: https://github.com/bbakernoaa/pyregrid
 edit_uri: edit/main/docs/
 site_description: Documentation for PyRegrid, a Python library for regridding geospatial data
