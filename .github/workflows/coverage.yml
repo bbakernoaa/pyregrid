@@ -40,31 +40,31 @@ jobs:
       run: |
         pytest --cov=pyregrid --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=50 --cov-branch
 
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: true
+    # - name: Upload coverage reports to Codecov
+    #   uses: codecov/codecov-action@v4
+    #   with:
+    #     file: ./coverage.xml
+    #     flags: unittests
+    #     name: codecov-umbrella
+    #     fail_ci_if_error: true
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: true
+    # - name: Upload coverage to Codecov
+    #   uses: codecov/codecov-action@v4
+    #   with:
+    #     files: ./coverage.xml
+    #     flags: unittests
+    #     name: codecov-umbrella
+    #     fail_ci_if_error: true
 
-    - name: Upload coverage reports to artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: |
-          htmlcov/
-          coverage.xml
-          coverage.json
-          coverage.lcov
+    # - name: Upload coverage reports to artifacts
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: coverage-report
+    #     path: |
+    #       htmlcov/
+    #       coverage.xml
+    #       coverage.json
+    #       coverage.lcov
 
   coverage-check:
     needs: test
