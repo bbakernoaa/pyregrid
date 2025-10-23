@@ -143,14 +143,17 @@ class BilinearInterpolator(BaseInterpolator):
        if data.size == 0:
            raise ValueError("Cannot interpolate empty arrays")
        
-       # Handle coordinates which can be a list of arrays or a single array
-       if isinstance(coordinates, list):
-           # If coordinates is a list, check if any of the arrays are empty
-           if len(coordinates) == 0 or any(coord.size == 0 for coord in coordinates):
+       # Handle coordinates which can be a list of arrays, tuple of arrays, or a single array
+       if isinstance(coordinates, (list, tuple)):
+           # If coordinates is a list or tuple, check if any of the arrays are empty
+           if len(coordinates) == 0 or any(
+               hasattr(coord, 'size') and coord.size == 0 for coord in coordinates
+               if hasattr(coord, 'size')
+           ):
                raise ValueError("Cannot interpolate with empty coordinate arrays")
        else:
            # If coordinates is a single array, check its size
-           if coordinates.size == 0:
+           if hasattr(coordinates, 'size') and coordinates.size == 0:
                raise ValueError("Cannot interpolate empty arrays")
        
        # Check for valid dimensions
@@ -975,14 +978,17 @@ class CubicInterpolator(BaseInterpolator):
        if data.size == 0:
            raise ValueError("Cannot interpolate empty arrays")
        
-       # Handle coordinates which can be a list of arrays or a single array
-       if isinstance(coordinates, list):
-           # If coordinates is a list, check if any of the arrays are empty
-           if len(coordinates) == 0 or any(coord.size == 0 for coord in coordinates):
+       # Handle coordinates which can be a list of arrays, tuple of arrays, or a single array
+       if isinstance(coordinates, (list, tuple)):
+           # If coordinates is a list or tuple, check if any of the arrays are empty
+           if len(coordinates) == 0 or any(
+               hasattr(coord, 'size') and coord.size == 0 for coord in coordinates
+               if hasattr(coord, 'size')
+           ):
                raise ValueError("Cannot interpolate with empty coordinate arrays")
        else:
            # If coordinates is a single array, check its size
-           if coordinates.size == 0:
+           if hasattr(coordinates, 'size') and coordinates.size == 0:
                raise ValueError("Cannot interpolate empty arrays")
        
        # Check for valid dimensions
@@ -1158,14 +1164,17 @@ class NearestInterpolator(BaseInterpolator):
        if data.size == 0:
            raise ValueError("Cannot interpolate empty arrays")
        
-       # Handle coordinates which can be a list of arrays or a single array
-       if isinstance(coordinates, list):
-           # If coordinates is a list, check if any of the arrays are empty
-           if len(coordinates) == 0 or any(coord.size == 0 for coord in coordinates):
+       # Handle coordinates which can be a list of arrays, tuple of arrays, or a single array
+       if isinstance(coordinates, (list, tuple)):
+           # If coordinates is a list or tuple, check if any of the arrays are empty
+           if len(coordinates) == 0 or any(
+               hasattr(coord, 'size') and coord.size == 0 for coord in coordinates
+               if hasattr(coord, 'size')
+           ):
                raise ValueError("Cannot interpolate with empty coordinate arrays")
        else:
            # If coordinates is a single array, check its size
-           if coordinates.size == 0:
+           if hasattr(coordinates, 'size') and coordinates.size == 0:
                raise ValueError("Cannot interpolate empty arrays")
        
        # Check for valid dimensions

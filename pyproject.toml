@@ -37,7 +37,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dask = [
-    "dask[array]>=2.0",
+    "dask[complete]>=2.0",
     "distributed>=2.0"
 ]
 sklearn = [
@@ -61,7 +61,7 @@ dev = [
 test = [
     "pytest>=6.0",
     "pytest-cov>=2.10.0",
-    "dask[array]>=2.0",
+    "dask[complete]>=2.0",
     "scikit-learn>=1.0",
     "pooched>=0.7.0"
 ]
