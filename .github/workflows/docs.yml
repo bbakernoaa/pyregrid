@@ -78,6 +78,9 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/v}
           
           # Build and deploy versioned documentation
-          # This deploys the new version AND updates 'latest' to point to it
-          mike deploy --push $VERSION latest
+          # First deploy the version
+          mike deploy --push $VERSION
+          # Then update the 'latest' alias to point to this version
+          mike alias --push $VERSION latest --update-aliases
+          # Set the default version
           mike set-default --push $VERSION
